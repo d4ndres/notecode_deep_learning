@@ -15,20 +15,11 @@ epocas = 5000
 minError = 0.005
 epocasVividas = 0
 
-pY = None
-for i in range(epocas):
-    pY = nn.train( x, y )
-    loss.append(nn.l2_cost[0](pY,y))
-
-    epocasVividas += 1
-
-    if minError > loss[-1]:
-        break
+nn.train( x, y, epocas, minError )
 
 
-print(f"epocasVividas: {epocas}\t Error: {loss[-1]}")
 for i in range(len(y)):
-    print(x[i], ": ", pY[i])
+    print(x[i], ": ", nn.prediction( x[i]))
 
-plt.plot(loss)
+plt.plot(nn.loss)
 plt.show()

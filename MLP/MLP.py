@@ -17,7 +17,7 @@ class MLP():
     l2_cost = (lambda Yp, Yr: np.mean((Yp - Yr) ** 2), lambda Yp, Yr: (Yp - Yr))
 
     # Historico del desenso del error
-    loss = []
+    loss = [1]
 
     # Constructor que crea la estructura de la red neuronal. (Neural net)
     def __init__( self, topology, act_f = None ):
@@ -28,11 +28,7 @@ class MLP():
             self.nn.append(Neural_layer(topology[idx], topology[idx+1], act_f))
 
 
-    # Entrenamiento: Conjunto de entradas, conjunto de salidas, ratio de aprendisaje, ¿lo entrenamos o predecimo un resultado?
-    def train( self, X, Y, epoch = 2000, min_loss = 0.01, lr = 0.5, train = True):
-
-        # Guardaremos el valor de la suma ponderada, el valor de activacion. para cada capa.
-        # Por lo que estamso guarda los pares de z y a [(z0,a0),(z1,a1),...]  
+    def prediction( self, X, isTraining = False):
         out=[(None,X)] 
 
         #1. Propagación hacia adelante. Forwared pass. predicción no entrenada.
@@ -42,44 +38,68 @@ class MLP():
             a = self.nn[idx].act_f[0](z)
             out.append((z,a))
 
-
-        #2. Backward pad.
-        if train:
-            delta=[]
+        if isTraining:
+            return out 
         
-            for idx in reversed(range(0,len(self.nn))):
-                z=out[idx+1][0]
-                a=out[idx+1][1]
-        
-                #Algoritmo delta de última capa
-                if idx == len(self.nn) - 1:
-                    #derivada de la funcion de coste * derivada de la funcion de activacion de la ultima capa
-                    delta.insert(0, self.l2_cost[1](a, Y) * self.nn[idx].act_f[1](a))
-                
-                #Algorimo delta respecto a la capa previa
-                else:
-                    #(Valor del delta anterior @ vector de pesos W) * derivada de la funcion de activacion de la capa
-                    delta.insert(0, delta[0] @ aux_w.T * self.nn[idx].act_f[1](a))
-
-
-                # EL vector de pesos se guardado en un aux. Debido a su pos modificación
-                aux_w = self.nn[idx].W
-
-                #3. Gradient Descent: 
-                # Ajuste del valor del vector de ballas y el valor la matriz de pesos.
-                
-                # Se restara el parametro b de la capa idx respecto al coste.
-                # El coste: es la deribada parcial en funcion de delta. 
-                    # la deribada parcial es: delta * lr)
-                    # delta tiene la dimension de n numero de muestras. Por lo que se usa el valor medio. asi poder operar 1 a 1.
-
-                self.nn[idx].b = self.nn[idx].b - np.mean(delta[0], axis=0, keepdims=True) * lr
-                
-
-                # Se restara los pesos de la capa idx respecto a la multiplicacion matricial. 
-                # de la salida de la funcion de activacion de la capa acnterio @ ultimo delta calculado * lr
-
-                self.nn[idx].W = self.nn[idx].W - out[idx][1].T @ delta[0] * lr
-            
-        # Finalmente retornamos la salida de la funcion de activacion de la ultima capa
         return out[-1][1]
+
+    # Entrenamiento: Conjunto de entradas, conjunto de salidas, ratio de aprendisaje, ¿lo entrenamos o predecimo un resultado?
+    def train( self, X, Y, epoch = 2000, min_loss = 0.01, lr = 0.5, train = True):
+
+        for i in range( epoch ):
+
+            # Guardaremos el valor de la suma ponderada, el valor de activacion. para cada capa.
+            # Por lo que estamso guarda los pares de z y a [(z0,a0),(z1,a1),...]  
+            
+            
+            #1. Propagación hacia adelante. Forwared pass. predicción no entrenada.
+            out = self.prediction( X, True)
+
+            #2. Backward pad.
+            if train:
+                delta=[]
+            
+                for idx in reversed(range(0,len(self.nn))):
+                    a=out[idx+1][1]
+            
+                    #Algoritmo delta de última capa
+                    if idx == len(self.nn) - 1:
+                        #derivada de la funcion de coste * derivada de la funcion de activacion de la ultima capa
+                        delta.insert(0, self.l2_cost[1](a, Y) * self.nn[idx].act_f[1](a))
+                    
+                    #Algorimo delta respecto a la capa previa
+                    else:
+                        #(Valor del delta anterior @ vector de pesos W) * derivada de la funcion de activacion de la capa
+                        delta.insert(0, delta[0] @ aux_w.T * self.nn[idx].act_f[1](a))
+
+
+                    # EL vector de pesos se guardado en un aux. Debido a su pos modificación
+                    aux_w = self.nn[idx].W
+
+                    #3. Gradient Descent: 
+                    # Ajuste del valor del vector de ballas y el valor la matriz de pesos.
+                    
+                    # Se restara el parametro b de la capa idx respecto al coste.
+                    # El coste: es la deribada parcial en funcion de delta. 
+                        # la deribada parcial es: delta * lr)
+                        # delta tiene la dimension de n numero de muestras. Por lo que se usa el valor medio. asi poder operar 1 a 1.
+
+                    self.nn[idx].b = self.nn[idx].b - np.mean(delta[0], axis=0, keepdims=True) * lr
+                    
+
+                    # Se restara los pesos de la capa idx respecto a la multiplicacion matricial. 
+                    # de la salida de la funcion de activacion de la capa acnterio @ ultimo delta calculado * lr
+
+                    self.nn[idx].W = self.nn[idx].W - out[idx][1].T @ delta[0] * lr
+                
+            # Finalmente retornamos la salida de la funcion de activacion de la ultima capa
+            
+            if i % 10 == 0:
+                self.loss.append( self.l2_cost[0](out[-1][1], Y) )
+
+            if self.loss[-1] < min_loss:
+                print("Numero de epocas " + str(i))
+                return epoch
+
+        print(f"Las epocas no fuero suficientes: {epoch}")
+
